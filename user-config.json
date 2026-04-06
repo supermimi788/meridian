@@ -1,0 +1,36 @@
+{
+  "preset": "custom",
+  "dryRun": true,
+
+  "deployAmountSol": 0.12,
+  "maxPositions": 1,
+  "minSolToOpen": 0.16,
+  "maxDeployAmount": 0.12,
+  "gasReserve": 0.05,
+  "positionSizePct": 0.30,
+
+  "strategy": "bid_ask",
+  "binsBelow": 69,
+  "timeframe": "5m",
+  "category": "trending",
+
+  "minTvl": 15000,
+  "maxTvl": 120000,
+  "minVolume": 1000,
+  "minOrganic": 65,
+  "minHolders": 700,
+  "minMcap": 250000,
+  "maxMcap": 8000000,
+
+  "minClaimAmount": 0.005,
+
+  "stopLossPct": -12,
+  "takeProfitFeePct": 3,
+
+  "trailingTakeProfit": true,
+  "trailingTriggerPct": 2,
+  "trailingDropPct": 1,
+
+  "managementIntervalMin": 10,
+  "screeningIntervalMin": 30
+}
