@@ -2,9 +2,10 @@ FROM node:20-bookworm-slim
 
 WORKDIR /app
 
-# Install dependencies first (better layer cache)
+# Install dependencies first (better layer cache).
+# Prefer lockfile install, but fall back when lockfile is out-of-sync.
 COPY package.json package-lock.json ./
-RUN npm install --omit=dev
+RUN npm ci --omit=dev || npm install --omit=dev
 
 # Copy source
 COPY . .
