@@ -115,6 +115,8 @@ cp user-config.paper-30.example.json user-config.json
 
 4. Commit and push, then deploy. Railway uses `railway.json` (`npm start`) out of the box.
 
+If Nixpacks build fails (for example while installing `libatomic1`), keep the included `Dockerfile` in your repo so Railway builds with Docker instead of Nixpacks.
+
 Notes for the ~$30 budget profile:
 - `maxPositions` is set to `1` (never open more than one concurrent position).
 - Position sizing is capped by `maxDeployAmount=0.2` SOL; adjust this to your SOL/USD rate (example: if SOL is $150, then $30 ≈ 0.2 SOL).
@@ -445,7 +447,6 @@ All fields are optional — defaults shown. Edit `user-config.json`.
 | `screeningModel` | `openai/gpt-oss-20b:free` | LLM for screening cycles |
 | `generalModel` | `openai/gpt-oss-20b:free` | LLM for REPL / chat |
 
-<<<<<<< HEAD
 > Override model at runtime: `node cli.js config set screeningModel anthropic/claude-opus-4-5`
 
 ---
