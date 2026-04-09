@@ -17,6 +17,22 @@ if (u.llmBaseUrl) process.env.LLM_BASE_URL      ||= u.llmBaseUrl;
 if (u.llmApiKey)  process.env.LLM_API_KEY       ||= u.llmApiKey;
 if (u.dryRun !== undefined) process.env.DRY_RUN ||= String(u.dryRun);
 
+const DEPRECATED_MODELS = new Set([
+  "openrouter/healer-alpha",
+  "openrouter/hunter-alpha",
+  "healer-alpha",
+  "hunter-alpha",
+]);
+
+function resolveModel(model, fallback) {
+  if (!model) return fallback;
+  const normalized = String(model).trim();
+  if (!normalized) return fallback;
+  return DEPRECATED_MODELS.has(normalized.toLowerCase()) ? fallback : normalized;
+}
+
+const DEFAULT_LLM_MODEL = process.env.LLM_MODEL || "openai/gpt-oss-20b:free";
+
 export const config = {
   // ─── Risk Limits ─────────────────────────
   risk: {
@@ -92,9 +108,9 @@ export const config = {
     temperature: u.temperature ?? 0.373,
     maxTokens:   u.maxTokens   ?? 4096,
     maxSteps:    u.maxSteps    ?? 20,
-    managementModel: u.managementModel ?? process.env.LLM_MODEL ?? "openrouter/healer-alpha",
-    screeningModel:  u.screeningModel  ?? process.env.LLM_MODEL ?? "openrouter/hunter-alpha",
-    generalModel:    u.generalModel    ?? process.env.LLM_MODEL ?? "openrouter/healer-alpha",
+    managementModel: resolveModel(u.managementModel ?? process.env.LLM_MODEL, DEFAULT_LLM_MODEL),
+    screeningModel:  resolveModel(u.screeningModel  ?? process.env.LLM_MODEL, DEFAULT_LLM_MODEL),
+    generalModel:    resolveModel(u.generalModel    ?? process.env.LLM_MODEL, DEFAULT_LLM_MODEL),
   },
 
   // ─── Common Token Mints ────────────────
