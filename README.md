@@ -99,6 +99,30 @@ npm start      # live mode
 
 On startup Meridian fetches your wallet balance, open positions, and top pool candidates, then begins autonomous cycles immediately.
 
+### 4. Railway paper-trading quickstart (budget ~$30, max 1 posisi)
+
+If you want to mirror this repo on Railway first (paper trading only), use this flow:
+
+1. Fork this repo and create a new Railway project from your GitHub fork.
+2. In Railway Variables, set all keys from `.env.example` and force paper mode:
+   - `DRY_RUN=true`
+   - `RPC_URL`, `WALLET_PRIVATE_KEY`, `OPENROUTER_API_KEY`, `HELIUS_API_KEY`
+3. Use the included starter config:
+
+```bash
+cp user-config.paper-30.example.json user-config.json
+```
+
+4. Commit and push, then deploy. Railway uses `railway.json` (`npm start`) out of the box.
+
+If Nixpacks build fails (for example while installing `libatomic1`), keep the included `Dockerfile` in your repo so Railway builds with Docker instead of Nixpacks.
+
+Notes for the ~$30 budget profile:
+- `maxPositions` is set to `1` (never open more than one concurrent position).
+- Position sizing is capped by `maxDeployAmount=0.2` SOL; adjust this to your SOL/USD rate (example: if SOL is $150, then $30 ≈ 0.2 SOL).
+- Keep `dryRun: true` in `user-config.json` until logs are stable and signals look correct.
+
+
 ---
 
 ## Running modes
