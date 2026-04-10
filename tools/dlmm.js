@@ -126,6 +126,8 @@ export async function deployPosition({
     const finalAmountY = amount_y ?? amount_sol ?? 0;
     const finalAmountX = amount_x ?? 0;
     const dryActiveBin = 0;
+    const simSolPriceUsd = Number(process.env.SIM_SOL_PRICE_USD || 150);
+    const simulatedInitialUsd = Math.max(0, Number((finalAmountY * simSolPriceUsd).toFixed(4)));
 
     trackPosition({
       position: dryPosition,
@@ -146,7 +148,7 @@ export async function deployPosition({
       volatility,
       fee_tvl_ratio,
       organic_score,
-      initial_value_usd,
+      initial_value_usd: simulatedInitialUsd,
     });
     _positionsCacheAt = 0;
 
@@ -160,6 +162,7 @@ export async function deployPosition({
         bins_above: activeBinsAbove,
         amount_x: finalAmountX,
         amount_y: finalAmountY,
+        simulated_initial_value_usd: simulatedInitialUsd,
         wide_range: totalBins > 69,
       },
       message: "DRY RUN — no transaction sent (simulated position saved in state)",
@@ -465,16 +468,6 @@ export async function getMyPositions({ force = false, silent = false } = {}) {
     try { walletAddress = getWallet().publicKey.toString(); } catch { /* optional in dry run */ }
     const openTracked = getTrackedPositions(true);
     const positions = openTracked.map((p) => {
-      const ageMinutes = p.deployed_at ? Math.floor((Date.now() - new Date(p.deployed_at).getTime()) / 60000) : 0;
-      const seed = Array.from(p.position || "").reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % 997;
-      const cycle = (ageMinutes + seed) / 45; // slow, deterministic drift
-      const pnlPctRaw = Math.sin(cycle) * 2.75; // ~ -2.75%..+2.75%
-      const pnlPct = Math.round(pnlPctRaw * 100) / 100;
-      const baseValueUsd = Math.max(0, p.initial_value_usd ?? (p.amount_sol ? p.amount_sol * 150 : 0));
-      const feeRate = Math.max(0, (p.initial_fee_tvl_24h ?? 1) / 100);
-      const unclaimedFeesUsd = Math.round((baseValueUsd * feeRate * Math.max(0, ageMinutes) / (24 * 60)) * 10000) / 10000;
-      const pnlUsd = Math.round((baseValueUsd * (pnlPct / 100)) * 10000) / 10000;
-      const totalValueUsd = Math.round((baseValueUsd + pnlUsd + unclaimedFeesUsd) * 10000) / 10000;
       const activeBin = p.bin_range?.active ?? null;
       const lowerBin = p.bin_range?.min ?? null;
       const upperBin = p.bin_range?.max ?? null;
@@ -486,21 +479,21 @@ export async function getMyPositions({ force = false, silent = false } = {}) {
         lower_bin: lowerBin,
         upper_bin: upperBin,
         active_bin: activeBin,
-        in_range: Math.abs(pnlPct) < 2.4,
-        unclaimed_fees_usd: unclaimedFeesUsd,
-        total_value_usd: totalValueUsd,
-        total_value_true_usd: totalValueUsd,
+        in_range: true,
+        unclaimed_fees_usd: 0,
+        total_value_usd: p.initial_value_usd ?? null,
+        total_value_true_usd: p.initial_value_usd ?? null,
         collected_fees_usd: p.total_fees_claimed_usd ?? 0,
         collected_fees_true_usd: p.total_fees_claimed_usd ?? 0,
-        pnl_usd: pnlUsd,
-        pnl_true_usd: pnlUsd,
-        pnl_pct: pnlPct,
-        pnl_pct_derived: pnlPct,
+        pnl_usd: 0,
+        pnl_true_usd: 0,
+        pnl_pct: 0,
+        pnl_pct_derived: 0,
         pnl_pct_diff: 0,
         pnl_pct_suspicious: false,
-        unclaimed_fees_true_usd: unclaimedFeesUsd,
+        unclaimed_fees_true_usd: 0,
         fee_per_tvl_24h: p.initial_fee_tvl_24h ?? null,
-        age_minutes: ageMinutes,
+        age_minutes: p.deployed_at ? Math.floor((Date.now() - new Date(p.deployed_at).getTime()) / 60000) : null,
         minutes_out_of_range: minutesOutOfRange(p.position),
         instruction: p.instruction ?? null,
       };

@@ -113,6 +113,12 @@ If you want to mirror this repo on Railway first (paper trading only), use this 
 cp user-config.paper-30.example.json user-config.json
 ```
 
+If your test capital is closer to **0.5 SOL**, use this preset instead:
+
+```bash
+cp user-config.paper-0.5sol.example.json user-config.json
+```
+
 4. Commit and push, then deploy. Railway uses `railway.json` (`npm start`) out of the box.
 
 If Nixpacks build fails (for example while installing `libatomic1`), keep the included `Dockerfile` in your repo so Railway builds with Docker instead of Nixpacks.
