@@ -512,6 +512,45 @@ export async function getMyPositions({ force = false, silent = false } = {}) {
   }
 
   _positionsInflight = (async () => { try {
+    if (process.env.DRY_RUN === "true") {
+      const openTracked = getTrackedPositions(true);
+      const positions = openTracked.map((p) => {
+        const activeBin = p.bin_range?.active ?? null;
+        const lowerBin = p.bin_range?.min ?? null;
+        const upperBin = p.bin_range?.max ?? null;
+        return {
+          position: p.position,
+          pool: p.pool,
+          pair: p.pool_name || p.pool,
+          base_mint: null,
+          lower_bin: lowerBin,
+          upper_bin: upperBin,
+          active_bin: activeBin,
+          in_range: true,
+          unclaimed_fees_usd: 0,
+          total_value_usd: p.initial_value_usd ?? null,
+          total_value_true_usd: p.initial_value_usd ?? null,
+          collected_fees_usd: p.total_fees_claimed_usd ?? 0,
+          collected_fees_true_usd: p.total_fees_claimed_usd ?? 0,
+          pnl_usd: 0,
+          pnl_true_usd: 0,
+          pnl_pct: 0,
+          pnl_pct_derived: 0,
+          pnl_pct_diff: 0,
+          pnl_pct_suspicious: false,
+          unclaimed_fees_true_usd: 0,
+          fee_per_tvl_24h: p.initial_fee_tvl_24h ?? null,
+          age_minutes: p.deployed_at ? Math.floor((Date.now() - new Date(p.deployed_at).getTime()) / 60000) : null,
+          minutes_out_of_range: minutesOutOfRange(p.position),
+          instruction: p.instruction ?? null,
+        };
+      });
+      const result = { wallet: walletAddress, total_positions: positions.length, positions, dry_run: true };
+      _positionsCache = result;
+      _positionsCacheAt = Date.now();
+      return result;
+    }
+
     // Portfolio API discovers open pools/positions for this wallet.
     // Detailed range data stays on Meteora PnL API; value/PnL can be overridden by LPAgent below.
     if (!silent) log("positions", "Fetching portfolio via Meteora portfolio API...");
