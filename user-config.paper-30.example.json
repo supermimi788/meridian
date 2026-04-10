@@ -1,0 +1,44 @@
+{
+  "preset": "custom",
+  "dryRun": true,
+
+  "maxPositions": 1,
+  "maxDeployAmount": 0.2,
+  "deployAmountSol": 0.05,
+  "minSolToOpen": 0.06,
+  "gasReserve": 0.03,
+  "positionSizePct": 0.5,
+
+  "strategy": "bid_ask",
+  "binsBelow": 69,
+
+  "managementIntervalMin": 10,
+  "screeningIntervalMin": 30,
+
+  "timeframe": "5m",
+  "category": "trending",
+  "minTvl": 10000,
+  "maxTvl": 150000,
+  "minVolume": 500,
+  "minOrganic": 60,
+  "minHolders": 500,
+  "minMcap": 150000,
+  "maxMcap": 10000000,
+  "minBinStep": 80,
+  "maxBinStep": 125,
+  "minFeeActiveTvlRatio": 0.05,
+  "minTokenFeesSol": 30,
+  "maxBundlePct": 30,
+  "maxBotHoldersPct": 30,
+  "maxTop10Pct": 60,
+
+  "minClaimAmount": 5,
+  "outOfRangeBinsToClose": 10,
+  "outOfRangeWaitMinutes": 30,
+  "stopLossPct": -50,
+  "takeProfitFeePct": 5,
+
+  "temperature": 0.373,
+  "maxTokens": 4096,
+  "maxSteps": 20
+}
