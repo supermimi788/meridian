@@ -465,6 +465,16 @@ export async function getMyPositions({ force = false, silent = false } = {}) {
     try { walletAddress = getWallet().publicKey.toString(); } catch { /* optional in dry run */ }
     const openTracked = getTrackedPositions(true);
     const positions = openTracked.map((p) => {
+      const ageMinutes = p.deployed_at ? Math.floor((Date.now() - new Date(p.deployed_at).getTime()) / 60000) : 0;
+      const seed = Array.from(p.position || "").reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % 997;
+      const cycle = (ageMinutes + seed) / 45; // slow, deterministic drift
+      const pnlPctRaw = Math.sin(cycle) * 2.75; // ~ -2.75%..+2.75%
+      const pnlPct = Math.round(pnlPctRaw * 100) / 100;
+      const baseValueUsd = Math.max(0, p.initial_value_usd ?? (p.amount_sol ? p.amount_sol * 150 : 0));
+      const feeRate = Math.max(0, (p.initial_fee_tvl_24h ?? 1) / 100);
+      const unclaimedFeesUsd = Math.round((baseValueUsd * feeRate * Math.max(0, ageMinutes) / (24 * 60)) * 10000) / 10000;
+      const pnlUsd = Math.round((baseValueUsd * (pnlPct / 100)) * 10000) / 10000;
+      const totalValueUsd = Math.round((baseValueUsd + pnlUsd + unclaimedFeesUsd) * 10000) / 10000;
       const activeBin = p.bin_range?.active ?? null;
       const lowerBin = p.bin_range?.min ?? null;
       const upperBin = p.bin_range?.max ?? null;
@@ -476,21 +486,21 @@ export async function getMyPositions({ force = false, silent = false } = {}) {
         lower_bin: lowerBin,
         upper_bin: upperBin,
         active_bin: activeBin,
-        in_range: true,
-        unclaimed_fees_usd: 0,
-        total_value_usd: p.initial_value_usd ?? null,
-        total_value_true_usd: p.initial_value_usd ?? null,
+        in_range: Math.abs(pnlPct) < 2.4,
+        unclaimed_fees_usd: unclaimedFeesUsd,
+        total_value_usd: totalValueUsd,
+        total_value_true_usd: totalValueUsd,
         collected_fees_usd: p.total_fees_claimed_usd ?? 0,
         collected_fees_true_usd: p.total_fees_claimed_usd ?? 0,
-        pnl_usd: 0,
-        pnl_true_usd: 0,
-        pnl_pct: 0,
-        pnl_pct_derived: 0,
+        pnl_usd: pnlUsd,
+        pnl_true_usd: pnlUsd,
+        pnl_pct: pnlPct,
+        pnl_pct_derived: pnlPct,
         pnl_pct_diff: 0,
         pnl_pct_suspicious: false,
-        unclaimed_fees_true_usd: 0,
+        unclaimed_fees_true_usd: unclaimedFeesUsd,
         fee_per_tvl_24h: p.initial_fee_tvl_24h ?? null,
-        age_minutes: p.deployed_at ? Math.floor((Date.now() - new Date(p.deployed_at).getTime()) / 60000) : null,
+        age_minutes: ageMinutes,
         minutes_out_of_range: minutesOutOfRange(p.position),
         instruction: p.instruction ?? null,
       };
