@@ -1178,13 +1178,20 @@ Focus on: hold duration, entry/exit timing, what win rates look like, whether sc
   startPolling(telegramHandler);
   (async () => {
     try {
-      const startupStep3 = process.env.DRY_RUN === "true"
-        ? `3. Ignore wallet SOL threshold in dry run: get_top_candidates then simulate deploy ${DEPLOY} SOL.`
-        : `3. If SOL >= ${config.management.minSolToOpen}: get_top_candidates then deploy ${DEPLOY} SOL.`;
-      await agentLoop(`
-STARTUP CHECK
-1. get_wallet_balance. 2. get_my_positions. ${startupStep3} 4. Report.
-      `, config.llm.maxSteps, [], "SCREENER");
+      const startupSteps = process.env.DRY_RUN === "true"
+        ? `STARTUP CHECK
+1. get_my_positions.
+2. get_top_candidates.
+3. Simulate deploy ${DEPLOY} SOL on the best candidate (deploy_position).
+4. Report.
+      `
+        : `STARTUP CHECK
+1. get_wallet_balance.
+2. get_my_positions.
+3. If SOL >= ${config.management.minSolToOpen}: get_top_candidates then deploy ${DEPLOY} SOL.
+4. Report.
+      `;
+      await agentLoop(startupSteps, config.llm.maxSteps, [], "SCREENER");
     } catch (e) {
       log("startup_error", e.message);
     }
