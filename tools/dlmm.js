@@ -15,6 +15,7 @@ import {
   recordClaim,
   recordClose,
   getTrackedPosition,
+  getTrackedPositions,
   minutesOutOfRange,
   syncOpenPositions,
 } from "../state.js";
@@ -120,19 +121,54 @@ export async function deployPosition({
   }
 
   if (process.env.DRY_RUN === "true") {
+    const dryPosition = `dry_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
     const totalBins = activeBinsBelow + activeBinsAbove;
+    const finalAmountY = amount_y ?? amount_sol ?? 0;
+    const finalAmountX = amount_x ?? 0;
+    const dryActiveBin = 0;
+    const simSolUsd = Number(process.env.SIM_SOL_USD || 150);
+    const providedInitialUsd = Number(initial_value_usd);
+    const hasSaneInitialUsd = Number.isFinite(providedInitialUsd) && providedInitialUsd >= 1;
+    const simulatedInitialUsd = hasSaneInitialUsd
+      ? providedInitialUsd
+      : (finalAmountY > 0 ? Number((finalAmountY * simSolUsd).toFixed(4)) : null);
+
+    trackPosition({
+      position: dryPosition,
+      pool: pool_address,
+      pool_name: pool_name || `DRY ${pool_address.slice(0, 6)}`,
+      strategy: activeStrategy,
+      bin_range: {
+        min: dryActiveBin - activeBinsBelow,
+        max: dryActiveBin + activeBinsAbove,
+        bins_below: activeBinsBelow,
+        bins_above: activeBinsAbove,
+        active: dryActiveBin,
+      },
+      amount_sol: finalAmountY,
+      amount_x: finalAmountX,
+      active_bin: dryActiveBin,
+      bin_step,
+      volatility,
+      fee_tvl_ratio,
+      organic_score,
+      initial_value_usd: simulatedInitialUsd,
+    });
+    _positionsCacheAt = 0;
+
     return {
       dry_run: true,
+      simulated_position: dryPosition,
       would_deploy: {
         pool_address,
         strategy: activeStrategy,
         bins_below: activeBinsBelow,
         bins_above: activeBinsAbove,
-        amount_x: amount_x || 0,
-        amount_y: amount_y || amount_sol || 0,
+        amount_x: finalAmountX,
+        amount_y: finalAmountY,
         wide_range: totalBins > 69,
       },
-      message: "DRY RUN — no transaction sent",
+      message: "DRY RUN — no transaction sent (simulated position saved in state)",
     };
   }
 
@@ -258,10 +294,19 @@ export async function deployPosition({
       initial_value_usd,
     });
 
-    const actualBinStep = pool.lbPair.binStep;
-    const activePrice = parseFloat(activeBin.price);
-    const minPrice = activePrice * Math.pow(1 + actualBinStep / 10000, minBinId - activeBin.binId);
-    const maxPrice = activePrice * Math.pow(1 + actualBinStep / 10000, maxBinId - activeBin.binId);
+    const actualBinStep = Number(pool.lbPair.binStep);
+    const activePrice = Number(activeBin.price);
+    const minPriceRaw = activePrice * Math.pow(1 + actualBinStep / 10000, minBinId - activeBin.binId);
+    const maxPriceRaw = activePrice * Math.pow(1 + actualBinStep / 10000, maxBinId - activeBin.binId);
+    const normalizePrice = (v) => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return null;
+      if (n === 0) return 0;
+      if (Math.abs(n) < 1e-6) return Number(n.toExponential(6));
+      return Number(n.toFixed(8));
+    };
+    const minPrice = normalizePrice(minPriceRaw);
+    const maxPrice = normalizePrice(maxPriceRaw);
 
     // Read base fee directly from pool — baseFactor * binStep / 10^6 gives fee in %
     const baseFactor = pool.lbPair.parameters?.baseFactor ?? 0;
@@ -429,6 +474,51 @@ export async function getMyPositions({ force = false, silent = false } = {}) {
     return _positionsCache;
   }
   if (_positionsInflight) return _positionsInflight;
+
+  if (process.env.DRY_RUN === "true") {
+    let walletAddress = null;
+    try { walletAddress = getWallet().publicKey.toString(); } catch { /* optional in dry run */ }
+    const simSolUsd = Number(process.env.SIM_SOL_USD || 150);
+    const openTracked = getTrackedPositions(true);
+    const positions = openTracked.map((p) => {
+      const activeBin = p.bin_range?.active ?? null;
+      const lowerBin = p.bin_range?.min ?? null;
+      const upperBin = p.bin_range?.max ?? null;
+      const estimatedValueUsd = Number.isFinite(Number(p.initial_value_usd))
+        ? Number(p.initial_value_usd)
+        : (p.amount_sol ? Number((Number(p.amount_sol) * simSolUsd).toFixed(4)) : null);
+      return {
+        position: p.position,
+        pool: p.pool,
+        pair: p.pool_name || p.pool,
+        base_mint: null,
+        lower_bin: lowerBin,
+        upper_bin: upperBin,
+        active_bin: activeBin,
+        in_range: true,
+        unclaimed_fees_usd: 0,
+        total_value_usd: estimatedValueUsd,
+        total_value_true_usd: estimatedValueUsd,
+        collected_fees_usd: p.total_fees_claimed_usd ?? 0,
+        collected_fees_true_usd: p.total_fees_claimed_usd ?? 0,
+        pnl_usd: 0,
+        pnl_true_usd: 0,
+        pnl_pct: 0,
+        pnl_pct_derived: 0,
+        pnl_pct_diff: 0,
+        pnl_pct_suspicious: false,
+        unclaimed_fees_true_usd: 0,
+        fee_per_tvl_24h: p.initial_fee_tvl_24h ?? null,
+        age_minutes: p.deployed_at ? Math.floor((Date.now() - new Date(p.deployed_at).getTime()) / 60000) : null,
+        minutes_out_of_range: minutesOutOfRange(p.position),
+        instruction: p.instruction ?? null,
+      };
+    });
+    const result = { wallet: walletAddress, total_positions: positions.length, positions, dry_run: true };
+    _positionsCache = result;
+    _positionsCacheAt = Date.now();
+    return result;
+  }
 
   let walletAddress;
   try {
@@ -677,7 +767,9 @@ export async function searchPools({ query, limit = 10 }) {
 export async function claimFees({ position_address }) {
   position_address = normalizeMint(position_address);
   if (process.env.DRY_RUN === "true") {
-    return { dry_run: true, would_claim: position_address, message: "DRY RUN — no transaction sent" };
+    recordClaim(position_address, 0);
+    _positionsCacheAt = 0;
+    return { dry_run: true, would_claim: position_address, message: "DRY RUN — simulated claim saved in state" };
   }
 
   const tracked = getTrackedPosition(position_address);
@@ -723,7 +815,9 @@ export async function claimFees({ position_address }) {
 export async function closePosition({ position_address, reason }) {
   position_address = normalizeMint(position_address);
   if (process.env.DRY_RUN === "true") {
-    return { dry_run: true, would_close: position_address, message: "DRY RUN — no transaction sent" };
+    recordClose(position_address, reason || "Manual dry-run close");
+    _positionsCacheAt = 0;
+    return { dry_run: true, would_close: position_address, message: "DRY RUN — simulated close saved in state" };
   }
 
   const tracked = getTrackedPosition(position_address);
