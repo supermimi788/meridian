@@ -294,10 +294,19 @@ export async function deployPosition({
       initial_value_usd,
     });
 
-    const actualBinStep = pool.lbPair.binStep;
-    const activePrice = parseFloat(activeBin.price);
-    const minPrice = activePrice * Math.pow(1 + actualBinStep / 10000, minBinId - activeBin.binId);
-    const maxPrice = activePrice * Math.pow(1 + actualBinStep / 10000, maxBinId - activeBin.binId);
+    const actualBinStep = Number(pool.lbPair.binStep);
+    const activePrice = Number(activeBin.price);
+    const minPriceRaw = activePrice * Math.pow(1 + actualBinStep / 10000, minBinId - activeBin.binId);
+    const maxPriceRaw = activePrice * Math.pow(1 + actualBinStep / 10000, maxBinId - activeBin.binId);
+    const normalizePrice = (v) => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return null;
+      if (n === 0) return 0;
+      if (Math.abs(n) < 1e-6) return Number(n.toExponential(6));
+      return Number(n.toFixed(8));
+    };
+    const minPrice = normalizePrice(minPriceRaw);
+    const maxPrice = normalizePrice(maxPriceRaw);
 
     // Read base fee directly from pool — baseFactor * binStep / 10^6 gives fee in %
     const baseFactor = pool.lbPair.parameters?.baseFactor ?? 0;
