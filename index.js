@@ -19,7 +19,8 @@ import { getTokenNarrative, getTokenInfo } from "./tools/token.js";
 
 log("startup", "DLMM LP Agent starting...");
 log("startup", `Mode: ${process.env.DRY_RUN === "true" ? "DRY RUN" : "LIVE"}`);
-log("startup", `Model: ${process.env.LLM_MODEL || "hermes-3-405b"}`);
+log("startup", `Model env default: ${process.env.LLM_MODEL || "openai/gpt-oss-20b:free"}`);
+log("startup", `Models => management: ${config.llm.managementModel} | screening: ${config.llm.screeningModel} | general: ${config.llm.generalModel}`);
 
 const TP_PCT = config.management.takeProfitFeePct;
 const DEPLOY = config.management.deployAmountSol;
@@ -168,7 +169,7 @@ export async function runManagementCycle({ silent = false } = {}) {
   if (_managementBusy) return null;
   _managementBusy = true;
   timers.managementLastRun = Date.now();
-  log("cron", "Starting management cycle");
+  log("cron", `Starting management cycle [model: ${config.llm.managementModel}]`);
   let mgmtReport = null;
   let positions = [];
   let liveMessage = null;
