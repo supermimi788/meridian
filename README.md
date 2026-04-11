@@ -135,8 +135,12 @@ Then set `DRY_RUN=false` in Railway Variables and redeploy.
 
 This preset is intentionally conservative:
 - max 1 concurrent position
-- deploy size starts around `0.08` SOL and capped at `0.15` SOL
+- deploy size starts around `0.08` SOL and capped at `0.2` SOL
 - tighter risk filters and `maxSteps=30` to reduce partial-cycle cutoffs
+- Sequence-style hard filters:
+  - `minFeeActiveTvlRatio=0.53` (53%)
+  - `minVolTvlRatio=1`
+  - `allowedBinSteps=[20,50,80,100]`
 
 
 ---
