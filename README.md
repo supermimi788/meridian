@@ -142,6 +142,21 @@ This preset is intentionally conservative:
   - `minVolTvlRatio=1`
   - `allowedBinSteps=[20,50,80,100]`
 
+### 6. Hybrid models preset (Gemini screening + GPT management)
+
+If you want to split model roles for speed/cost:
+
+```bash
+cp user-config.hybrid-gemini-screen-gpt-manage.example.json user-config.json
+```
+
+Preset behavior:
+- `screeningModel`: `google/gemini-2.5-flash-lite`
+- `managementModel`: `openai/gpt-oss-20b`
+- `generalModel`: `openai/gpt-oss-20b`
+
+If your OpenRouter account uses different model slugs, replace these three fields with your exact slug names from OpenRouter.
+
 
 ---
 

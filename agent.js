@@ -96,6 +96,11 @@ const client = new OpenAI({
   timeout: 5 * 60 * 1000,
 });
 
+const ACTIVE_LLM_KEY_SOURCE = process.env.LLM_API_KEY ? "LLM_API_KEY" : (process.env.OPENROUTER_API_KEY ? "OPENROUTER_API_KEY" : "NONE");
+const ACTIVE_LLM_KEY = process.env.LLM_API_KEY || process.env.OPENROUTER_API_KEY || "";
+const ACTIVE_LLM_KEY_SUFFIX = ACTIVE_LLM_KEY ? ACTIVE_LLM_KEY.slice(-4) : "none";
+log("startup", `LLM provider: ${process.env.LLM_BASE_URL || "https://openrouter.ai/api/v1"} | key source: ${ACTIVE_LLM_KEY_SOURCE} | key suffix: ${ACTIVE_LLM_KEY_SUFFIX}`);
+
 const DEPRECATED_MODEL_ALIASES = new Set([
   "openrouter/healer-alpha",
   "openrouter/hunter-alpha",
