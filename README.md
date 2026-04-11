@@ -113,12 +113,6 @@ If you want to mirror this repo on Railway first (paper trading only), use this 
 cp user-config.paper-30.example.json user-config.json
 ```
 
-If your test capital is closer to **0.5 SOL**, use this preset instead:
-
-```bash
-cp user-config.paper-0.5sol.example.json user-config.json
-```
-
 4. Commit and push, then deploy. Railway uses `railway.json` (`npm start`) out of the box.
 
 If Nixpacks build fails (for example while installing `libatomic1`), keep the included `Dockerfile` in your repo so Railway builds with Docker instead of Nixpacks.
@@ -127,6 +121,22 @@ Notes for the ~$30 budget profile:
 - `maxPositions` is set to `1` (never open more than one concurrent position).
 - Position sizing is capped by `maxDeployAmount=0.2` SOL; adjust this to your SOL/USD rate (example: if SOL is $150, then $30 ≈ 0.2 SOL).
 - Keep `dryRun: true` in `user-config.json` until logs are stable and signals look correct.
+- Optional: set `SIM_SOL_USD` in env so dry-run position values are shown with your preferred SOL/USD estimate.
+
+### 5. Conservative live preset (0.5 SOL wallet)
+
+If you want to move from paper to real trading gradually:
+
+```bash
+cp user-config.live-0.5sol.example.json user-config.json
+```
+
+Then set `DRY_RUN=false` in Railway Variables and redeploy.
+
+This preset is intentionally conservative:
+- max 1 concurrent position
+- deploy size starts around `0.08` SOL and capped at `0.15` SOL
+- tighter risk filters and `maxSteps=30` to reduce partial-cycle cutoffs
 
 
 ---

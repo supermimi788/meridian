@@ -126,8 +126,12 @@ export async function deployPosition({
     const finalAmountY = amount_y ?? amount_sol ?? 0;
     const finalAmountX = amount_x ?? 0;
     const dryActiveBin = 0;
-    const simSolPriceUsd = Number(process.env.SIM_SOL_PRICE_USD || 150);
-    const simulatedInitialUsd = Math.max(0, Number((finalAmountY * simSolPriceUsd).toFixed(4)));
+    const simSolUsd = Number(process.env.SIM_SOL_USD || 150);
+    const providedInitialUsd = Number(initial_value_usd);
+    const hasSaneInitialUsd = Number.isFinite(providedInitialUsd) && providedInitialUsd >= 1;
+    const simulatedInitialUsd = hasSaneInitialUsd
+      ? providedInitialUsd
+      : (finalAmountY > 0 ? Number((finalAmountY * simSolUsd).toFixed(4)) : null);
 
     trackPosition({
       position: dryPosition,
@@ -162,7 +166,6 @@ export async function deployPosition({
         bins_above: activeBinsAbove,
         amount_x: finalAmountX,
         amount_y: finalAmountY,
-        simulated_initial_value_usd: simulatedInitialUsd,
         wide_range: totalBins > 69,
       },
       message: "DRY RUN — no transaction sent (simulated position saved in state)",
@@ -466,11 +469,15 @@ export async function getMyPositions({ force = false, silent = false } = {}) {
   if (process.env.DRY_RUN === "true") {
     let walletAddress = null;
     try { walletAddress = getWallet().publicKey.toString(); } catch { /* optional in dry run */ }
+    const simSolUsd = Number(process.env.SIM_SOL_USD || 150);
     const openTracked = getTrackedPositions(true);
     const positions = openTracked.map((p) => {
       const activeBin = p.bin_range?.active ?? null;
       const lowerBin = p.bin_range?.min ?? null;
       const upperBin = p.bin_range?.max ?? null;
+      const estimatedValueUsd = Number.isFinite(Number(p.initial_value_usd))
+        ? Number(p.initial_value_usd)
+        : (p.amount_sol ? Number((Number(p.amount_sol) * simSolUsd).toFixed(4)) : null);
       return {
         position: p.position,
         pool: p.pool,
@@ -481,8 +488,8 @@ export async function getMyPositions({ force = false, silent = false } = {}) {
         active_bin: activeBin,
         in_range: true,
         unclaimed_fees_usd: 0,
-        total_value_usd: p.initial_value_usd ?? null,
-        total_value_true_usd: p.initial_value_usd ?? null,
+        total_value_usd: estimatedValueUsd,
+        total_value_true_usd: estimatedValueUsd,
         collected_fees_usd: p.total_fees_claimed_usd ?? 0,
         collected_fees_true_usd: p.total_fees_claimed_usd ?? 0,
         pnl_usd: 0,
