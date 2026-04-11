@@ -18,6 +18,11 @@ export async function discoverPools({
   page_size = 50,
 } = {}) {
   const s = config.screening;
+  const allowedBinStepsSet = Array.isArray(s.allowedBinSteps) && s.allowedBinSteps.length > 0
+    ? new Set(s.allowedBinSteps.map((n) => Number(n)).filter(Number.isFinite))
+    : null;
+  const minAllowedBin = allowedBinStepsSet ? Math.min(...allowedBinStepsSet) : s.minBinStep;
+  const maxAllowedBin = allowedBinStepsSet ? Math.max(...allowedBinStepsSet) : s.maxBinStep;
   const filters = [
     "base_token_has_critical_warnings=false",
     "quote_token_has_critical_warnings=false",
@@ -29,8 +34,8 @@ export async function discoverPools({
     `volume>=${s.minVolume}`,
     `tvl>=${s.minTvl}`,
     `tvl<=${s.maxTvl}`,
-    `dlmm_bin_step>=${s.minBinStep}`,
-    `dlmm_bin_step<=${s.maxBinStep}`,
+    `dlmm_bin_step>=${minAllowedBin}`,
+    `dlmm_bin_step<=${maxAllowedBin}`,
     `fee_active_tvl_ratio>=${s.minFeeActiveTvlRatio}`,
     `base_token_organic_score>=${s.minOrganic}`,
     "quote_token_organic_score>=60",
@@ -52,7 +57,29 @@ export async function discoverPools({
 
   const data = await res.json();
 
-  const condensed = (data.data || []).map(condensePool);
+  let condensed = (data.data || []).map(condensePool);
+
+  // Optional strict bin-step whitelist
+  if (allowedBinStepsSet) {
+    const before = condensed.length;
+    condensed = condensed.filter((p) => p.bin_step != null && allowedBinStepsSet.has(Number(p.bin_step)));
+    const filtered = before - condensed.length;
+    if (filtered > 0) log("screen", `Filtered ${filtered} pool(s) by allowedBinSteps`);
+  }
+
+  // Optional volume/TVL hard filter (e.g. 1 = volume must be >= TVL)
+  if (s.minVolTvlRatio != null) {
+    const minRatio = Number(s.minVolTvlRatio);
+    const before = condensed.length;
+    condensed = condensed.filter((p) => {
+      const tvl = Number(p.active_tvl || 0);
+      const vol = Number(p.volume_window || 0);
+      if (!(tvl > 0)) return false;
+      return (vol / tvl) >= minRatio;
+    });
+    const filtered = before - condensed.length;
+    if (filtered > 0) log("screen", `Filtered ${filtered} pool(s) by minVolTvlRatio>=${minRatio}`);
+  }
 
   // Hard-filter blacklisted tokens and blocked deployers (what pool discovery already gave us)
   let pools = condensed.filter((p) => {
