@@ -19,7 +19,8 @@ import { getTokenNarrative, getTokenInfo } from "./tools/token.js";
 
 log("startup", "DLMM LP Agent starting...");
 log("startup", `Mode: ${process.env.DRY_RUN === "true" ? "DRY RUN" : "LIVE"}`);
-log("startup", `Model: ${process.env.LLM_MODEL || "hermes-3-405b"}`);
+log("startup", `Model env default: ${process.env.LLM_MODEL || "openai/gpt-oss-20b:free"}`);
+log("startup", `Models => management: ${config.llm.managementModel} | screening: ${config.llm.screeningModel} | general: ${config.llm.generalModel}`);
 
 const TP_PCT = config.management.takeProfitFeePct;
 const DEPLOY = config.management.deployAmountSol;
@@ -168,7 +169,7 @@ export async function runManagementCycle({ silent = false } = {}) {
   if (_managementBusy) return null;
   _managementBusy = true;
   timers.managementLastRun = Date.now();
-  log("cron", "Starting management cycle");
+  log("cron", `Starting management cycle [model: ${config.llm.managementModel}]`);
   let mgmtReport = null;
   let positions = [];
   let liveMessage = null;
@@ -1178,13 +1179,20 @@ Focus on: hold duration, entry/exit timing, what win rates look like, whether sc
   startPolling(telegramHandler);
   (async () => {
     try {
-      const startupStep3 = process.env.DRY_RUN === "true"
-        ? `3. Ignore wallet SOL threshold in dry run: get_top_candidates then simulate deploy ${DEPLOY} SOL.`
-        : `3. If SOL >= ${config.management.minSolToOpen}: get_top_candidates then deploy ${DEPLOY} SOL.`;
-      await agentLoop(`
-STARTUP CHECK
-1. get_wallet_balance. 2. get_my_positions. ${startupStep3} 4. Report.
-      `, config.llm.maxSteps, [], "SCREENER");
+      const startupSteps = process.env.DRY_RUN === "true"
+        ? `STARTUP CHECK
+1. get_my_positions.
+2. get_top_candidates.
+3. Simulate deploy ${DEPLOY} SOL on the best candidate (deploy_position).
+4. Report.
+      `
+        : `STARTUP CHECK
+1. get_wallet_balance.
+2. get_my_positions.
+3. If SOL >= ${config.management.minSolToOpen}: get_top_candidates then deploy ${DEPLOY} SOL.
+4. Report.
+      `;
+      await agentLoop(startupSteps, config.llm.maxSteps, [], "SCREENER");
     } catch (e) {
       log("startup_error", e.message);
     }
