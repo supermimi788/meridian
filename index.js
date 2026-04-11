@@ -19,7 +19,7 @@ import { getTokenNarrative, getTokenInfo } from "./tools/token.js";
 
 log("startup", "DLMM LP Agent starting...");
 log("startup", `Mode: ${process.env.DRY_RUN === "true" ? "DRY RUN" : "LIVE"}`);
-log("startup", `Model env default: ${process.env.LLM_MODEL || "openai/gpt-oss-20b:free"}`);
+log("startup", `Model env default: ${process.env.LLM_MODEL || "qwen/qwen-2.5-72b-instruct"}`);
 log("startup", `Models => management: ${config.llm.managementModel} | screening: ${config.llm.screeningModel} | general: ${config.llm.generalModel}`);
 
 const TP_PCT = config.management.takeProfitFeePct;

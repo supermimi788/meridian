@@ -142,18 +142,18 @@ This preset is intentionally conservative:
   - `minVolTvlRatio=1`
   - `allowedBinSteps=[20,50,80,100]`
 
-### 6. Hybrid models preset (Gemini screening + GPT management)
+### 6. Qwen-all preset (no free models)
 
-If you want to split model roles for speed/cost:
+If you want to run every role on Qwen (and avoid `:free` defaults):
 
 ```bash
 cp user-config.hybrid-gemini-screen-gpt-manage.example.json user-config.json
 ```
 
 Preset behavior:
-- `screeningModel`: `google/gemini-2.5-flash-lite`
-- `managementModel`: `openai/gpt-oss-20b`
-- `generalModel`: `openai/gpt-oss-20b`
+- `screeningModel`: `qwen/qwen-2.5-72b-instruct`
+- `managementModel`: `qwen/qwen-2.5-72b-instruct`
+- `generalModel`: `qwen/qwen-2.5-72b-instruct`
 
 If your OpenRouter account uses different model slugs, replace these three fields with your exact slug names from OpenRouter.
 
@@ -478,9 +478,9 @@ All fields are optional — defaults shown. Edit `user-config.json`.
 
 | Field | Default | Description |
 |---|---|---|
-| `managementModel` | `openai/gpt-oss-20b:free` | LLM for management cycles |
-| `screeningModel` | `openai/gpt-oss-20b:free` | LLM for screening cycles |
-| `generalModel` | `openai/gpt-oss-20b:free` | LLM for REPL / chat |
+| `managementModel` | `qwen/qwen-2.5-72b-instruct` | LLM for management cycles |
+| `screeningModel` | `qwen/qwen-2.5-72b-instruct` | LLM for screening cycles |
+| `generalModel` | `qwen/qwen-2.5-72b-instruct` | LLM for REPL / chat |
 
 > Override model at runtime: `node cli.js config set screeningModel anthropic/claude-opus-4-5`
 

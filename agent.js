@@ -108,7 +108,7 @@ const DEPRECATED_MODEL_ALIASES = new Set([
   "hunter-alpha",
 ]);
 
-const DEFAULT_MODEL = process.env.LLM_MODEL || "openai/gpt-oss-20b:free";
+const DEFAULT_MODEL = process.env.LLM_MODEL || "qwen/qwen-2.5-72b-instruct";
 
 function resolveModelAlias(model) {
   if (!model) return DEFAULT_MODEL;
@@ -190,7 +190,7 @@ export async function agentLoop(goal, maxSteps = config.llm.maxSteps, sessionHis
       const activeModel = resolveModelAlias(model);
 
       // Retry up to 3 times on transient provider errors (502, 503, 529)
-      const FALLBACK_MODEL = "stepfun/step-3.5-flash:free";
+      const FALLBACK_MODEL = DEFAULT_MODEL;
       let response;
       let usedModel = activeModel;
       // Force a tool call on step 0 for action intents — prevents the model from inventing deploy/close outcomes

@@ -31,7 +31,7 @@ function resolveModel(model, fallback) {
   return DEPRECATED_MODELS.has(normalized.toLowerCase()) ? fallback : normalized;
 }
 
-const DEFAULT_LLM_MODEL = process.env.LLM_MODEL || "openai/gpt-oss-20b:free";
+const DEFAULT_LLM_MODEL = process.env.LLM_MODEL || "qwen/qwen-2.5-72b-instruct";
 
 export const config = {
   // ─── Risk Limits ─────────────────────────

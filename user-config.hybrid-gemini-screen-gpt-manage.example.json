@@ -2,9 +2,9 @@
   "preset": "custom",
   "dryRun": false,
 
-  "managementModel": "openai/gpt-oss-20b",
-  "screeningModel": "google/gemini-2.5-flash-lite",
-  "generalModel": "openai/gpt-oss-20b",
+  "managementModel": "qwen/qwen-2.5-72b-instruct",
+  "screeningModel": "qwen/qwen-2.5-72b-instruct",
+  "generalModel": "qwen/qwen-2.5-72b-instruct",
 
   "maxPositions": 1,
   "maxDeployAmount": 0.2,
