@@ -468,6 +468,27 @@ function deriveLpAgentPnlPct(lpData, solMode = false) {
   return (pnl / deposit) * 100;
 }
 
+function estimateDryRunFeesUsd(trackedPosition) {
+  if (!trackedPosition) return { totalAccruedUsd: 0, unclaimedUsd: 0 };
+  const deployedAtMs = trackedPosition.deployed_at ? new Date(trackedPosition.deployed_at).getTime() : null;
+  if (!deployedAtMs || Number.isNaN(deployedAtMs)) return { totalAccruedUsd: 0, unclaimedUsd: 0 };
+
+  const ageMinutes = Math.max(0, (Date.now() - deployedAtMs) / 60000);
+  const initialValueUsd = safeNum(trackedPosition.initial_value_usd);
+  const feePerTvl24hPct = safeNum(trackedPosition.initial_fee_tvl_24h);
+  if (initialValueUsd <= 0 || feePerTvl24hPct <= 0) return { totalAccruedUsd: 0, unclaimedUsd: 0 };
+
+  const dailyRate = feePerTvl24hPct / 100;
+  const totalAccruedUsd = initialValueUsd * dailyRate * (ageMinutes / 1440);
+  const claimedUsd = safeNum(trackedPosition.total_fees_claimed_usd);
+  const unclaimedUsd = Math.max(0, totalAccruedUsd - claimedUsd);
+
+  return {
+    totalAccruedUsd: Math.round(totalAccruedUsd * 10000) / 10000,
+    unclaimedUsd: Math.round(unclaimedUsd * 10000) / 10000,
+  };
+}
+
 // ─── Get My Positions ──────────────────────────────────────────
 export async function getMyPositions({ force = false, silent = false } = {}) {
   if (!force && _positionsCache && Date.now() - _positionsCacheAt < POSITIONS_CACHE_TTL) {
@@ -487,6 +508,7 @@ export async function getMyPositions({ force = false, silent = false } = {}) {
       const estimatedValueUsd = Number.isFinite(Number(p.initial_value_usd))
         ? Number(p.initial_value_usd)
         : (p.amount_sol ? Number((Number(p.amount_sol) * simSolUsd).toFixed(4)) : null);
+      const { totalAccruedUsd, unclaimedUsd } = estimateDryRunFeesUsd(p);
       return {
         position: p.position,
         pool: p.pool,
@@ -496,7 +518,7 @@ export async function getMyPositions({ force = false, silent = false } = {}) {
         upper_bin: upperBin,
         active_bin: activeBin,
         in_range: true,
-        unclaimed_fees_usd: 0,
+        unclaimed_fees_usd: unclaimedUsd,
         total_value_usd: estimatedValueUsd,
         total_value_true_usd: estimatedValueUsd,
         collected_fees_usd: p.total_fees_claimed_usd ?? 0,
@@ -507,7 +529,8 @@ export async function getMyPositions({ force = false, silent = false } = {}) {
         pnl_pct_derived: 0,
         pnl_pct_diff: 0,
         pnl_pct_suspicious: false,
-        unclaimed_fees_true_usd: 0,
+        unclaimed_fees_true_usd: unclaimedUsd,
+        all_time_fees_usd: totalAccruedUsd,
         fee_per_tvl_24h: p.initial_fee_tvl_24h ?? null,
         age_minutes: p.deployed_at ? Math.floor((Date.now() - new Date(p.deployed_at).getTime()) / 60000) : null,
         minutes_out_of_range: minutesOutOfRange(p.position),
@@ -806,9 +829,16 @@ export async function searchPools({ query, limit = 10 }) {
 export async function claimFees({ position_address }) {
   position_address = normalizeMint(position_address);
   if (process.env.DRY_RUN === "true") {
-    recordClaim(position_address, 0);
+    const tracked = getTrackedPosition(position_address);
+    const { unclaimedUsd } = estimateDryRunFeesUsd(tracked);
+    recordClaim(position_address, unclaimedUsd);
     _positionsCacheAt = 0;
-    return { dry_run: true, would_claim: position_address, message: "DRY RUN — simulated claim saved in state" };
+    return {
+      dry_run: true,
+      would_claim: position_address,
+      claimed_fees_usd: unclaimedUsd,
+      message: `DRY RUN — simulated claim saved in state (${unclaimedUsd.toFixed(4)} USD)`
+    };
   }
 
   const tracked = getTrackedPosition(position_address);
