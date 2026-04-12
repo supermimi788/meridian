@@ -172,8 +172,7 @@ export async function getTopCandidates({ limit = 10 } = {}) {
         return false;
       }
       return true;
-    })
-    .slice(0, limit);
+    });
 
   if (config.screening.avoidPvpSymbols && eligible.length > 0) {
     await enrichPvpRisk(eligible);
@@ -254,6 +253,35 @@ export async function getTopCandidates({ limit = 10 } = {}) {
       return true;
     }));
 
+    // Sustained-activity filters — prevents entering pools with temporarily spiking fees but weak flow
+    const beforeSustained = eligible.length;
+    eligible.splice(0, eligible.length, ...eligible.filter((p) => {
+      const minSwapCount = config.screening.minSwapCount;
+      if (minSwapCount != null && Number(p.swap_count || 0) < Number(minSwapCount)) {
+        pushFilteredReason(filteredOut, p, `swap_count ${p.swap_count ?? 0} < ${minSwapCount}`);
+        return false;
+      }
+      const minUniqueTraders = config.screening.minUniqueTraders;
+      if (minUniqueTraders != null && Number(p.unique_traders || 0) < Number(minUniqueTraders)) {
+        pushFilteredReason(filteredOut, p, `unique_traders ${p.unique_traders ?? 0} < ${minUniqueTraders}`);
+        return false;
+      }
+      const minFeeChangePct = config.screening.minFeeChangePct;
+      if (minFeeChangePct != null && p.fee_change_pct != null && Number(p.fee_change_pct) < Number(minFeeChangePct)) {
+        pushFilteredReason(filteredOut, p, `fee_change_pct ${p.fee_change_pct}% < ${minFeeChangePct}%`);
+        return false;
+      }
+      const minVolumeChangePct = config.screening.minVolumeChangePct;
+      if (minVolumeChangePct != null && p.volume_change_pct != null && Number(p.volume_change_pct) < Number(minVolumeChangePct)) {
+        pushFilteredReason(filteredOut, p, `volume_change_pct ${p.volume_change_pct}% < ${minVolumeChangePct}%`);
+        return false;
+      }
+      return true;
+    }));
+    if (eligible.length < beforeSustained) {
+      log("screening", `Sustained activity filters removed ${beforeSustained - eligible.length} pool(s)`);
+    }
+
     // ATH filter — drop pools where price is too close to ATH
     const athFilter = config.screening.athFilterPct;
     if (athFilter != null) {
@@ -285,11 +313,40 @@ export async function getTopCandidates({ limit = 10 } = {}) {
     if (eligible.length < before) log("dev_blocklist", `Filtered ${before - eligible.length} pool(s) via OKX creator check`);
   }
 
+  // Sort by composite quality score so the LLM sees highest fee-potential pools first.
+  // This helps avoid very low-fee pools even if they barely pass thresholds.
+  eligible.sort((a, b) => scoreCandidate(b) - scoreCandidate(a));
+  if (eligible.length > limit) eligible.splice(limit);
+
   return {
     candidates: eligible,
     total_screened: pools.length,
     filtered_examples: filteredOut.slice(0, 3),
   };
+}
+
+function scoreCandidate(p) {
+  const feeTvl = Number(p.fee_active_tvl_ratio || 0);
+  const volTvl = p.active_tvl > 0 ? Number(p.volume_window || 0) / Number(p.active_tvl) : 0;
+  const traders = Number(p.unique_traders || 0);
+  const swaps = Number(p.swap_count || 0);
+  const organic = Number(p.organic_score || 0);
+  const feeTrend = Number(p.fee_change_pct || 0);
+  const volumeTrend = Number(p.volume_change_pct || 0);
+  const pvpPenalty = p.is_pvp ? 12 : 0;
+  const washPenalty = p.is_wash ? 100 : 0;
+
+  return (
+    (feeTvl * 32) +
+    (volTvl * 18) +
+    (organic * 0.25) +
+    (Math.min(traders, 200) * 0.08) +
+    (Math.min(swaps, 600) * 0.03) +
+    (feeTrend * 0.12) +
+    (volumeTrend * 0.08) -
+    pvpPenalty -
+    washPenalty
+  );
 }
 
 /**
