@@ -126,7 +126,7 @@ export async function deployPosition({
     const finalAmountY = amount_y ?? amount_sol ?? 0;
     const finalAmountX = amount_x ?? 0;
     const dryActiveBin = 0;
-    const simSolUsd = Number(process.env.SIM_SOL_USD || 150);
+    const simSolUsd = getSimSolUsd();
     const providedInitialUsd = Number(initial_value_usd);
     const hasSaneInitialUsd = Number.isFinite(providedInitialUsd) && providedInitialUsd >= 1;
     const simulatedInitialUsd = hasSaneInitialUsd
@@ -432,6 +432,16 @@ function safeNum(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function getSimSolUsd() {
+  const raw = Number(process.env.SIM_SOL_USD);
+  // Prevent absurd dry-run valuation if env var is accidentally set to wallet USD value.
+  if (Number.isFinite(raw) && raw >= 5 && raw <= 1000) return raw;
+  if (Number.isFinite(raw) && (raw < 5 || raw > 1000)) {
+    log("dry_warn", `Ignoring out-of-range SIM_SOL_USD=${raw}; fallback=150`);
+  }
+  return 150;
+}
+
 function deriveOpenPnlPct(binData, solMode = false) {
   if (!binData) return null;
 
@@ -499,7 +509,7 @@ export async function getMyPositions({ force = false, silent = false } = {}) {
   if (process.env.DRY_RUN === "true") {
     let walletAddress = null;
     try { walletAddress = getWallet().publicKey.toString(); } catch { /* optional in dry run */ }
-    const simSolUsd = Number(process.env.SIM_SOL_USD || 150);
+    const simSolUsd = getSimSolUsd();
     const openTracked = getTrackedPositions(true);
     const positions = openTracked.map((p) => {
       const activeBin = p.bin_range?.active ?? null;
