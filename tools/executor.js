@@ -150,6 +150,10 @@ const toolMap = {
       athFilterPct:     ["screening", "athFilterPct"],
       minVolTvlRatio:   ["screening", "minVolTvlRatio"],
       allowedBinSteps:  ["screening", "allowedBinSteps"],
+      minSwapCount: ["screening", "minSwapCount"],
+      minUniqueTraders: ["screening", "minUniqueTraders"],
+      minFeeChangePct: ["screening", "minFeeChangePct"],
+      minVolumeChangePct: ["screening", "minVolumeChangePct"],
       minFeePerTvl24h: ["management", "minFeePerTvl24h"],
       // management
       minClaimAmount: ["management", "minClaimAmount"],

@@ -65,6 +65,11 @@ export const config = {
     // Optional hard filters inspired by Sequence-style thresholds
     minVolTvlRatio:     u.minVolTvlRatio     ?? null, // e.g. 1 = volume must be >= TVL
     allowedBinSteps:    u.allowedBinSteps    ?? null, // e.g. [20, 50, 80, 100]
+    // Optional quality gates to avoid "fake high APY" pools with weak real flow
+    minSwapCount:       u.minSwapCount       ?? null, // e.g. 40 swaps in timeframe
+    minUniqueTraders:   u.minUniqueTraders   ?? null, // e.g. 25 distinct traders
+    minFeeChangePct:    u.minFeeChangePct    ?? null, // e.g. -35 means fees can't collapse >35%
+    minVolumeChangePct: u.minVolumeChangePct ?? null, // e.g. -35 means volume can't collapse >35%
   },
 
   // ─── Position Management ────────────────
@@ -176,5 +181,9 @@ export function reloadScreeningThresholds() {
     if (fresh.maxBotHoldersPct  != null) s.maxBotHoldersPct = fresh.maxBotHoldersPct;
     if (fresh.minVolTvlRatio    !== undefined) s.minVolTvlRatio = fresh.minVolTvlRatio;
     if (fresh.allowedBinSteps   !== undefined) s.allowedBinSteps = fresh.allowedBinSteps;
+    if (fresh.minSwapCount      !== undefined) s.minSwapCount = fresh.minSwapCount;
+    if (fresh.minUniqueTraders  !== undefined) s.minUniqueTraders = fresh.minUniqueTraders;
+    if (fresh.minFeeChangePct   !== undefined) s.minFeeChangePct = fresh.minFeeChangePct;
+    if (fresh.minVolumeChangePct !== undefined) s.minVolumeChangePct = fresh.minVolumeChangePct;
   } catch { /* ignore */ }
 }
