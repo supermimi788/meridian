@@ -96,7 +96,26 @@ const client = new OpenAI({
   timeout: 5 * 60 * 1000,
 });
 
-const DEFAULT_MODEL = process.env.LLM_MODEL || "openrouter/healer-alpha";
+const ACTIVE_LLM_KEY_SOURCE = process.env.LLM_API_KEY ? "LLM_API_KEY" : (process.env.OPENROUTER_API_KEY ? "OPENROUTER_API_KEY" : "NONE");
+const ACTIVE_LLM_KEY = process.env.LLM_API_KEY || process.env.OPENROUTER_API_KEY || "";
+const ACTIVE_LLM_KEY_SUFFIX = ACTIVE_LLM_KEY ? ACTIVE_LLM_KEY.slice(-4) : "none";
+log("startup", `LLM provider: ${process.env.LLM_BASE_URL || "https://openrouter.ai/api/v1"} | key source: ${ACTIVE_LLM_KEY_SOURCE} | key suffix: ${ACTIVE_LLM_KEY_SUFFIX}`);
+
+const DEPRECATED_MODEL_ALIASES = new Set([
+  "openrouter/healer-alpha",
+  "openrouter/hunter-alpha",
+  "healer-alpha",
+  "hunter-alpha",
+]);
+
+const DEFAULT_MODEL = process.env.LLM_MODEL || "qwen/qwen-2.5-72b-instruct";
+
+function resolveModelAlias(model) {
+  if (!model) return DEFAULT_MODEL;
+  const normalized = String(model).trim();
+  if (!normalized) return DEFAULT_MODEL;
+  return DEPRECATED_MODEL_ALIASES.has(normalized.toLowerCase()) ? DEFAULT_MODEL : normalized;
+}
 
 const TOOL_REQUIRED_INTENTS = /\b(deploy|open position|open|add liquidity|lp into|invest in|close|exit|withdraw|remove liquidity|claim|harvest|collect|swap|convert|sell|exchange|block|unblock|blacklist|self.?update|pull latest|git pull|update yourself|config|setting|threshold|set |change|update |balance|wallet|position|portfolio|pnl|yield|range|screen|candidate|find pool|search|research|token|smart wallet|whale|watch.?list|tracked wallet|study top|top lpers?|lp behavior|who.?s lping|performance|history|stats|report|lesson|learned|teach|pin|unpin)\b/i;
 
@@ -168,10 +187,10 @@ export async function agentLoop(goal, maxSteps = config.llm.maxSteps, sessionHis
     log("agent", `Step ${step + 1}/${maxSteps}`);
 
     try {
-      const activeModel = model || DEFAULT_MODEL;
+      const activeModel = resolveModelAlias(model);
 
       // Retry up to 3 times on transient provider errors (502, 503, 529)
-      const FALLBACK_MODEL = "stepfun/step-3.5-flash:free";
+      const FALLBACK_MODEL = DEFAULT_MODEL;
       let response;
       let usedModel = activeModel;
       // Force a tool call on step 0 for action intents — prevents the model from inventing deploy/close outcomes
