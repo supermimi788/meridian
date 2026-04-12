@@ -8,7 +8,7 @@ import { getWalletBalances } from "./tools/wallet.js";
 import { getTopCandidates } from "./tools/screening.js";
 import { config, reloadScreeningThresholds, computeDeployAmount } from "./config.js";
 import { evolveThresholds, getPerformanceSummary } from "./lessons.js";
-import { registerCronRestarter } from "./tools/executor.js";
+import { registerCronRestarter, executeTool } from "./tools/executor.js";
 import { startPolling, stopPolling, sendMessage, sendHTML, notifyOutOfRange, isEnabled as telegramEnabled, createLiveMessage } from "./telegram.js";
 import { generateBriefing } from "./briefing.js";
 import { getLastBriefingDate, setLastBriefingDate, getTrackedPosition, setPositionInstruction, updatePnlAndCheckExits, queuePeakConfirmation, resolvePendingPeak, queueTrailingDropConfirmation, resolvePendingTrailingDrop } from "./state.js";
@@ -82,6 +82,23 @@ function sanitizeUntrustedPromptText(text, maxLen = 500) {
     .trim()
     .slice(0, maxLen);
   return cleaned ? JSON.stringify(cleaned) : null;
+}
+
+const FAST_SEQUENCE_PRESET = Object.freeze({
+  minFeeActiveTvlRatio: 0.53,
+  minVolTvlRatio: 1,
+  minTvl: 5500,
+  allowedBinSteps: [20, 50, 80, 100],
+  minClaimAmount: 2,
+});
+
+async function applyFastPreset(reason = "manual preset") {
+  const result = await executeTool("update_config", {
+    changes: FAST_SEQUENCE_PRESET,
+    reason,
+  });
+  reloadScreeningThresholds();
+  return result;
 }
 
 function schedulePeakConfirmation(positionAddress) {
@@ -285,6 +302,7 @@ export async function runManagementCycle({ silent = false } = {}) {
     const totalValue = positionData.reduce((s, p) => s + (p.total_value_usd ?? 0), 0);
     const totalUnclaimed = positionData.reduce((s, p) => s + (p.unclaimed_fees_usd ?? 0), 0);
 
+    const claimTarget = config.management.minClaimAmount ?? 5;
     const reportLines = positionData.map((p) => {
       const act = actionMap.get(p.position);
       const inRange = p.in_range ? "🟢 IN" : `🔴 OOR ${p.minutes_out_of_range ?? 0}m`;
@@ -292,6 +310,21 @@ export async function runManagementCycle({ silent = false } = {}) {
       const unclaimed = config.management.solMode ? `◎${p.unclaimed_fees_usd ?? "?"}` : `$${p.unclaimed_fees_usd ?? "?"}`;
       const statusLabel = act.action === "INSTRUCTION" ? "HOLD (instruction)" : act.action;
       let line = `**${p.pair}** | Age: ${p.age_minutes ?? "?"}m | Val: ${val} | Unclaimed: ${unclaimed} | PnL: ${p.pnl_pct ?? "?"}% | Yield: ${p.fee_per_tvl_24h ?? "?"}% | ${inRange} | ${statusLabel}`;
+      const unclaimedUsd = Number.isFinite(p.unclaimed_fees_usd) ? p.unclaimed_fees_usd : null;
+      const ageMinutes = Number.isFinite(p.age_minutes) ? p.age_minutes : null;
+      if (unclaimedUsd != null) {
+        const progressPct = claimTarget > 0 ? Math.max(0, Math.min(100, (unclaimedUsd / claimTarget) * 100)) : 0;
+        line += `\nClaim target: $${claimTarget.toFixed(2)} (${progressPct.toFixed(2)}% reached)`;
+        if (act.action !== "CLAIM" && ageMinutes != null && ageMinutes >= 5 && unclaimedUsd > 0 && claimTarget > unclaimedUsd) {
+          const usdPerHour = unclaimedUsd / (ageMinutes / 60);
+          if (usdPerHour > 0) {
+            const hoursToClaim = (claimTarget - unclaimedUsd) / usdPerHour;
+            if (Number.isFinite(hoursToClaim) && hoursToClaim > 0) {
+              line += `\nETA to claim threshold: ~${hoursToClaim.toFixed(hoursToClaim >= 10 ? 0 : 1)}h @ current pace`;
+            }
+          }
+        }
+      }
       if (p.instruction) line += `\nNote: "${p.instruction}"`;
       if (act.action === "CLOSE" && act.rule === "exit") line += `\n⚡ Trailing TP: ${act.reason}`;
       if (act.action === "CLOSE" && act.rule && act.rule !== "exit") line += `\nRule ${act.rule}: ${act.reason}`;
@@ -813,6 +846,26 @@ async function telegramHandler(msg) {
     return;
   }
 
+  const presetMatch = text.match(/^\/preset(?:\s+(\w+))?$/i);
+  if (presetMatch) {
+    try {
+      const presetName = (presetMatch[1] || "fast").toLowerCase();
+      if (presetName !== "fast" && presetName !== "sequence") {
+        await sendMessage("Unknown preset. Available: /preset fast");
+        return;
+      }
+      const result = await applyFastPreset(`telegram /preset ${presetName}`);
+      if (!result?.success) {
+        await sendMessage(`❌ Preset apply failed: ${result?.reason || "unknown error"}`);
+        return;
+      }
+      await sendMessage("✅ Fast preset applied: fee/TVL 53%, vol/TVL >= 1x, min TVL $5500, bin steps [20,50,80,100], min claim $2.");
+    } catch (e) {
+      await sendMessage(`Error: ${e.message}`).catch(() => {});
+    }
+    return;
+  }
+
   const closeMatch = text.match(/^\/close\s+(\d+)$/i);
   if (closeMatch) {
     try {
@@ -974,6 +1027,7 @@ Commands:
   /learn <addr>  Study top LPers from a specific pool address
   /thresholds    Show current screening thresholds + performance stats
   /evolve        Manually trigger threshold evolution from performance data
+  /preset fast   Apply faster Sequence-style thresholds (more aggressive)
   /stop          Shut down
 `);
 
@@ -1069,7 +1123,9 @@ Commands:
       console.log(`  minTvl:               ${s.minTvl}`);
       console.log(`  maxTvl:               ${s.maxTvl}`);
       console.log(`  minVolume:            ${s.minVolume}`);
+      console.log(`  minVolTvlRatio:       ${s.minVolTvlRatio ?? "off"}`);
       console.log(`  minTokenFeesSol:      ${s.minTokenFeesSol}`);
+      console.log(`  allowedBinSteps:      ${Array.isArray(s.allowedBinSteps) ? `[${s.allowedBinSteps.join(", ")}]` : "any"}`);
       console.log(`  maxBundlePct:         ${s.maxBundlePct}`);
       console.log(`  maxBotHoldersPct:     ${s.maxBotHoldersPct}`);
       console.log(`  maxTop10Pct:          ${s.maxTop10Pct}`);
@@ -1156,6 +1212,28 @@ Focus on: hold duration, entry/exit timing, what win rates look like, whether sc
           }
           console.log("\nSaved to user-config.json. Applied immediately.\n");
         }
+      });
+      return;
+    }
+
+    const presetMatchTTY = input.match(/^\/preset(?:\s+(\w+))?$/i);
+    if (presetMatchTTY) {
+      await runBusy(async () => {
+        const presetName = (presetMatchTTY[1] || "fast").toLowerCase();
+        if (presetName !== "fast" && presetName !== "sequence") {
+          console.log("\nUnknown preset. Available: /preset fast\n");
+          return;
+        }
+        const result = await applyFastPreset(`tty /preset ${presetName}`);
+        if (!result?.success) {
+          console.log(`\nPreset apply failed: ${JSON.stringify(result)}\n`);
+          return;
+        }
+        console.log("\n✅ Fast preset applied:");
+        for (const [k, v] of Object.entries(result.applied || {})) {
+          console.log(`  ${k}: ${JSON.stringify(v)}`);
+        }
+        console.log();
       });
       return;
     }
