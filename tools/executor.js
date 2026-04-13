@@ -160,6 +160,8 @@ const toolMap = {
       autoSwapAfterClaim: ["management", "autoSwapAfterClaim"],
       outOfRangeBinsToClose: ["management", "outOfRangeBinsToClose"],
       outOfRangeWaitMinutes: ["management", "outOfRangeWaitMinutes"],
+      oorReentryBins: ["management", "oorReentryBins"],
+      oorReentryExtraWaitMinutes: ["management", "oorReentryExtraWaitMinutes"],
       oorCooldownTriggerCount: ["management", "oorCooldownTriggerCount"],
       oorCooldownHours: ["management", "oorCooldownHours"],
       minVolumeToRebalance: ["management", "minVolumeToRebalance"],

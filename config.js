@@ -42,7 +42,7 @@ export const config = {
 
   // ─── Pool Screening Thresholds ───────────
   screening: {
-    minFeeActiveTvlRatio: u.minFeeActiveTvlRatio ?? 0.05,
+    minFeeActiveTvlRatio: u.minFeeActiveTvlRatio ?? 0.25,
     minTvl:            u.minTvl            ?? 10_000,
     maxTvl:            u.maxTvl            ?? 150_000,
     minVolume:         u.minVolume         ?? 500,
@@ -52,8 +52,8 @@ export const config = {
     maxMcap:           u.maxMcap           ?? 10_000_000,
     minBinStep:        u.minBinStep        ?? 80,
     maxBinStep:        u.maxBinStep        ?? 125,
-    timeframe:         u.timeframe         ?? "5m",
-    category:          u.category          ?? "trending",
+    timeframe:         u.timeframe         ?? "1h",
+    category:          u.category          ?? "top",
     minTokenFeesSol:   u.minTokenFeesSol   ?? 30,  // global fees paid (priority+jito tips). below = bundled/scam
     maxBundlePct:      u.maxBundlePct      ?? 30,  // max bundle holding % (OKX advanced-info)
     maxBotHoldersPct:  u.maxBotHoldersPct  ?? 30,  // max bot holder addresses % (Jupiter audit)
@@ -63,13 +63,13 @@ export const config = {
     maxTokenAgeHours:   u.maxTokenAgeHours   ?? null, // null = no maximum
     athFilterPct:       u.athFilterPct       ?? null, // e.g. -20 = only deploy if price is >= 20% below ATH
     // Optional hard filters inspired by Sequence-style thresholds
-    minVolTvlRatio:     u.minVolTvlRatio     ?? null, // e.g. 1 = volume must be >= TVL
+    minVolTvlRatio:     u.minVolTvlRatio     ?? 0.75, // e.g. 1 = volume must be >= TVL
     allowedBinSteps:    u.allowedBinSteps    ?? null, // e.g. [20, 50, 80, 100]
     // Optional quality gates to avoid "fake high APY" pools with weak real flow
-    minSwapCount:       u.minSwapCount       ?? null, // e.g. 40 swaps in timeframe
-    minUniqueTraders:   u.minUniqueTraders   ?? null, // e.g. 25 distinct traders
-    minFeeChangePct:    u.minFeeChangePct    ?? null, // e.g. -35 means fees can't collapse >35%
-    minVolumeChangePct: u.minVolumeChangePct ?? null, // e.g. -35 means volume can't collapse >35%
+    minSwapCount:       u.minSwapCount       ?? 30, // minimum swaps in timeframe
+    minUniqueTraders:   u.minUniqueTraders   ?? 20, // minimum distinct traders
+    minFeeChangePct:    u.minFeeChangePct    ?? -20, // avoid pools with fee collapse >20%
+    minVolumeChangePct: u.minVolumeChangePct ?? -20, // avoid pools with volume collapse >20%
   },
 
   // ─── Position Management ────────────────
@@ -78,13 +78,15 @@ export const config = {
     autoSwapAfterClaim:    u.autoSwapAfterClaim    ?? false,
     outOfRangeBinsToClose: u.outOfRangeBinsToClose ?? 10,
     outOfRangeWaitMinutes: u.outOfRangeWaitMinutes ?? 30,
+    oorReentryBins:        u.oorReentryBins        ?? 8,  // if active bin is still near range edge, wait for natural re-entry
+    oorReentryExtraWaitMinutes: u.oorReentryExtraWaitMinutes ?? 45, // extra grace before OOR close when near edge
     oorCooldownTriggerCount: u.oorCooldownTriggerCount ?? 3,
     oorCooldownHours:       u.oorCooldownHours       ?? 12,
     minVolumeToRebalance:  u.minVolumeToRebalance  ?? 1000,
     stopLossPct:           u.stopLossPct           ?? u.emergencyPriceDropPct ?? -50,
     takeProfitFeePct:      u.takeProfitFeePct      ?? 5,
     minFeePerTvl24h:       u.minFeePerTvl24h       ?? 7,
-    minAgeBeforeYieldCheck: u.minAgeBeforeYieldCheck ?? 60, // minutes before low yield can trigger close
+    minAgeBeforeYieldCheck: u.minAgeBeforeYieldCheck ?? 20, // minutes before low yield can trigger close
     minSolToOpen:          u.minSolToOpen          ?? 0.55,
     deployAmountSol:       u.deployAmountSol       ?? 0.5,
     gasReserve:            u.gasReserve            ?? 0.2,

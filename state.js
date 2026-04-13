@@ -375,12 +375,20 @@ export function getStateSummary() {
  * Check all exit conditions for a position (trailing TP, stop loss, OOR, low yield).
  * Updates peak_pnl_pct, trailing_active, and OOR state.
  * @param {string} position_address
- * @param {object} positionData - fields from getMyPositions: pnl_pct, in_range, fee_per_tvl_24h
+ * @param {object} positionData - fields from getMyPositions: pnl_pct, in_range, fee_per_tvl_24h, active_bin, lower_bin, upper_bin
  * @param {object} mgmtConfig
  * Returns { action, reason } or null if no exit needed.
  */
 export function updatePnlAndCheckExits(position_address, positionData, mgmtConfig) {
-  const { pnl_pct: currentPnlPct, pnl_pct_suspicious, in_range, fee_per_tvl_24h } = positionData;
+  const {
+    pnl_pct: currentPnlPct,
+    pnl_pct_suspicious,
+    in_range,
+    fee_per_tvl_24h,
+    active_bin,
+    lower_bin,
+    upper_bin,
+  } = positionData;
   const state = load();
   const pos = state.positions[position_address];
   if (!pos || pos.closed) return null;
@@ -446,6 +454,23 @@ export function updatePnlAndCheckExits(position_address, positionData, mgmtConfi
   if (pos.out_of_range_since) {
     const minutesOOR = Math.floor((Date.now() - new Date(pos.out_of_range_since).getTime()) / 60000);
     if (minutesOOR >= mgmtConfig.outOfRangeWaitMinutes) {
+      const reentryBins = Number(mgmtConfig.oorReentryBins ?? 0);
+      const extraWait = Number(mgmtConfig.oorReentryExtraWaitMinutes ?? 0);
+      if (
+        Number.isFinite(active_bin) &&
+        Number.isFinite(lower_bin) &&
+        Number.isFinite(upper_bin) &&
+        reentryBins > 0
+      ) {
+        const belowEdgeDistance = lower_bin - active_bin;
+        const aboveEdgeDistance = active_bin - upper_bin;
+        const closeToEdge =
+          (belowEdgeDistance > 0 && belowEdgeDistance <= reentryBins) ||
+          (aboveEdgeDistance > 0 && aboveEdgeDistance <= reentryBins);
+        if (closeToEdge && minutesOOR < (mgmtConfig.outOfRangeWaitMinutes + extraWait)) {
+          return null; // still close enough to edge, give it a bit more time to naturally re-enter
+        }
+      }
       return {
         action: "OUT_OF_RANGE",
         reason: `Out of range for ${minutesOOR}m (limit: ${mgmtConfig.outOfRangeWaitMinutes}m)`,
