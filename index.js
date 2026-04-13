@@ -284,9 +284,10 @@ export async function runManagementCycle({ silent = false } = {}) {
         continue;
       }
       // Rule 5: fee yield too low
+      const minAgeForYieldCheck = config.management.minAgeBeforeYieldCheck ?? 60;
       if (p.fee_per_tvl_24h != null &&
           p.fee_per_tvl_24h < config.management.minFeePerTvl24h &&
-          (p.age_minutes ?? 0) >= 60) {
+          (p.age_minutes ?? 0) >= minAgeForYieldCheck) {
         actionMap.set(p.position, { action: "CLOSE", rule: 5, reason: "low yield" });
         continue;
       }
@@ -308,8 +309,11 @@ export async function runManagementCycle({ silent = false } = {}) {
       const inRange = p.in_range ? "🟢 IN" : `🔴 OOR ${p.minutes_out_of_range ?? 0}m`;
       const val = config.management.solMode ? `◎${p.total_value_usd ?? "?"}` : `$${p.total_value_usd ?? "?"}`;
       const unclaimed = config.management.solMode ? `◎${p.unclaimed_fees_usd ?? "?"}` : `$${p.unclaimed_fees_usd ?? "?"}`;
+      const pnlValue = config.management.solMode ? `◎${p.pnl_usd ?? "?"}` : `$${p.pnl_usd ?? "?"}`;
+      const realizedFees = config.management.solMode ? `◎${p.collected_fees_usd ?? "?"}` : `$${p.collected_fees_usd ?? "?"}`;
       const statusLabel = act.action === "INSTRUCTION" ? "HOLD (instruction)" : act.action;
-      let line = `**${p.pair}** | Age: ${p.age_minutes ?? "?"}m | Val: ${val} | Unclaimed: ${unclaimed} | PnL: ${p.pnl_pct ?? "?"}% | Yield: ${p.fee_per_tvl_24h ?? "?"}% | ${inRange} | ${statusLabel}`;
+      let line = `**${p.pair}** | Age: ${p.age_minutes ?? "?"}m | Val: ${val} | Unclaimed: ${unclaimed} | PnL: ${p.pnl_pct ?? "?"}% (${pnlValue}) | Yield: ${p.fee_per_tvl_24h ?? "?"}% | ${inRange} | ${statusLabel}`;
+      line += `\nPnL check: floating=${pnlValue} | realized_fees=${realizedFees}`;
       const unclaimedUsd = Number.isFinite(p.unclaimed_fees_usd) ? p.unclaimed_fees_usd : null;
       const ageMinutes = Number.isFinite(p.age_minutes) ? p.age_minutes : null;
       if (unclaimedUsd != null) {
@@ -356,7 +360,7 @@ export async function runManagementCycle({ silent = false } = {}) {
           `POSITION: ${p.pair} (${p.position})`,
           `  pool: ${p.pool}`,
           `  action: ${act.action}${act.rule && act.rule !== "exit" ? ` — Rule ${act.rule}: ${act.reason}` : ""}${act.rule === "exit" ? ` — ⚡ Trailing TP: ${act.reason}` : ""}`,
-          `  pnl_pct: ${p.pnl_pct}% | unclaimed_fees: ${cur}${p.unclaimed_fees_usd} | value: ${cur}${p.total_value_usd} | fee_per_tvl_24h: ${p.fee_per_tvl_24h ?? "?"}%`,
+          `  pnl_pct: ${p.pnl_pct}% | pnl_value: ${cur}${p.pnl_usd ?? "?"} | realized_fees: ${cur}${p.collected_fees_usd ?? "?"} | unclaimed_fees: ${cur}${p.unclaimed_fees_usd} | value: ${cur}${p.total_value_usd} | fee_per_tvl_24h: ${p.fee_per_tvl_24h ?? "?"}%`,
           `  bins: lower=${p.lower_bin} upper=${p.upper_bin} active=${p.active_bin} | oor_minutes: ${p.minutes_out_of_range ?? 0}`,
           p.instruction ? `  instruction: "${p.instruction}"` : null,
         ].filter(Boolean).join("\n");
