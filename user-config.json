@@ -2,10 +2,10 @@
   "preset": "custom",
   "dryRun": true,
 
-  "deployAmountSol": 0.12,
+  "deployAmountSol": 0.5,
   "maxPositions": 1,
-  "minSolToOpen": 0.16,
-  "maxDeployAmount": 0.12,
+  "minSolToOpen": 0.05,
+  "maxDeployAmount": 0.2,
   "gasReserve": 0.05,
   "positionSizePct": 0.30,
 
@@ -14,11 +14,11 @@
   "timeframe": "5m",
   "category": "trending",
 
-  "minTvl": 15000,
-  "maxTvl": 120000,
+  "minTvl": 5000,
+  "maxTvl": 500000,
   "minVolume": 1000,
-  "minOrganic": 65,
-  "minHolders": 700,
+  "minOrganic": 50,
+  "minHolders": 200,
   "minMcap": 250000,
   "maxMcap": 8000000,
 
@@ -31,6 +31,6 @@
   "trailingTriggerPct": 2,
   "trailingDropPct": 1,
 
-  "managementIntervalMin": 10,
-  "screeningIntervalMin": 30
+  "managementIntervalMin": 5,
+  "screeningIntervalMin": 5
 }
