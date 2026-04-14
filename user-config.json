@@ -4,7 +4,7 @@
 
   "deployAmountSol": 0.5,
   "maxPositions": 1,
-  "minSolToOpen": 0.05,
+  "minSolToOpen": 0.3,
   "maxDeployAmount": 0.2,
   "gasReserve": 0.05,
   "positionSizePct": 0.30,
@@ -19,12 +19,12 @@
   "minVolume": 1000,
   "minOrganic": 50,
   "minHolders": 200,
-  "minMcap": 250000,
-  "maxMcap": 8000000,
+  "minMcap": 50000,
+  "maxMcap": 800000,
 
-  "minClaimAmount": 0.005,
+  "minClaimAmount": 2,
 
-  "stopLossPct": -12,
+  "stopLossPct": -25,
   "takeProfitFeePct": 3,
 
   "trailingTakeProfit": true,
