@@ -5,9 +5,9 @@
   "deployAmountSol": 0.5,
   "maxPositions": 1,
   "minSolToOpen": 0.3,
-  "maxDeployAmount": 0.2,
-  "gasReserve": 0.05,
-  "positionSizePct": 0.30,
+  "maxDeployAmount": 1,
+  "gasReserve": 0.1,
+  "positionSizePct": 0.35,
 
   "strategy": "bid_ask",
   "binsBelow": 69,
@@ -15,22 +15,38 @@
   "category": "trending",
 
   "minTvl": 5000,
-  "maxTvl": 500000,
-  "minVolume": 1000,
+  "maxTvl": 800000,
+  "minVolume": 200,
   "minOrganic": 50,
   "minHolders": 200,
   "minMcap": 50000,
-  "maxMcap": 800000,
+  "maxMcap": 20000000,
 
   "minClaimAmount": 2,
 
+  "minBinStep": 20,
+  "maxBinStep": 200,
+  "minFeeActiveTvlRatio": 0.02,
+  "minTokenFeesSol": 2,
+  "maxBundlePct": 50,
+  "maxBotHoldersPct": 50,
+  "maxTop10Pct": 75,
+
   "stopLossPct": -25,
-  "takeProfitFeePct": 3,
+  "takeProfitFeePct": 2,
 
   "trailingTakeProfit": true,
   "trailingTriggerPct": 2,
   "trailingDropPct": 1,
 
+  "minClaimAmount": 2,
+  "autoSwapAfterClaim": false,
+  "outOfRangeBinsToClose": 5,
+  "outOfRangeWaitMinutes": 5,
+  "oorCooldownTriggerCount": 3,
+  "oorCooldownHours": 4,
+  "minVolumeToRebalance": 300,
+
   "managementIntervalMin": 5,
-  "screeningIntervalMin": 5
+  "screeningIntervalMin": 10
 }
